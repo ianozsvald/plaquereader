@@ -28,6 +28,8 @@ import enchant # http://www.rfk.id.au/software/pyenchant/
 # For more details see:
 # http://aicookbook.com/wiki/Automatic_plaque_transcription
 
+PROGRESS_FILENAME = "progress.txt" # progress log
+
 def load_csv(filename):
     """build plaques structure from CSV file"""
     plaques = []
@@ -66,18 +68,25 @@ def levenshtein(a,b):
             
     return current[n]
 
-def transcribe_simple(filename):
-    """Convert image to TIF, send to tesseract, read the file back, clean and
-    return"""
-    # read in original image, save as .tif for tesseract
-    im = Image.open(filename)
-    filename_base = os.path.splitext(filename)[0] # turn 'abc.jpg' into 'abc'
-    
+def clean_image(im):
     #Enhance contrast
     #contraster = ImageEnhance.Contrast(im)
     #im = contraster.enhance(3.0)
     im = crop_to_plaque(im)
     im = convert_to_bandl(im)
+    return im
+
+def transcribe_simple(filename, progress_file):
+    """Convert image to TIF, send to tesseract, read the file back, clean and
+    return"""
+    # read in original image, save as .tif for tesseract
+    im = Image.open(filename)
+    filename_base = os.path.splitext(filename)[0] # turn 'abc.jpg' into 'abc'
+
+    progress_file.write('----\n')
+    progress_file.write(filename + '\n')
+    
+    im = clean_image(im)
     
     filename_tif = 'processed' + filename_base + '.tif'
     im.save(filename_tif, 'TIFF')
@@ -130,9 +139,11 @@ def transcribe_simple(filename):
             
     transcription = ' '.join(newtokens)
 
+    progress_file.write('trans:'+transcription+"\n")
+
     return transcription
     
-def clean_years (m):
+def clean_years(m):
     digits = m.group(1)
     year = []
     for digit in digits:
@@ -146,7 +157,7 @@ def clean_years (m):
             year.append(digit)
     return ''.join(year)
     
-def crop_to_plaque (srcim):
+def crop_to_plaque(srcim):
     
     scale = 0.25
     wkim = srcim.resize((int(srcim.size[0] * scale), int(srcim.size[1] * scale)))
@@ -206,7 +217,7 @@ def crop_to_plaque (srcim):
     
     return region
     
-def convert_to_bandl (im):
+def convert_to_bandl(im):
     width = im.size[0]
     height = im.size[1]
     
@@ -235,17 +246,21 @@ easy_blue_plaques.csv)"
         plaques = load_csv(sys.argv[1])
 
         results = open('results.csv', 'w')
+        progress_file = open(PROGRESS_FILENAME, 'w')
 
         for root_url, filename, text in plaques:
             print "----"
             print "Working on:", filename
-            transcription = transcribe_simple(filename)
+            transcription = transcribe_simple(filename, progress_file)
+            progress_file.write("orig: " + text + "\n")
             print "Transcription: ", transcription
             print "Text: ", text
             error = levenshtein(text, transcription)
+            progress_file.write("error:" + str(error) + "\n")
             assert isinstance(error, int)
             print "Error metric:", error
             results.write('%s,%d\n' % (filename, error))
             results.flush()
         results.close()
+        progress_file.close()
 

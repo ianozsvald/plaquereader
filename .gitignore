@@ -4,3 +4,5 @@
 *.swp
 # ignore the results file
 results.csv
+
+progress.txt
