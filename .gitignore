@@ -1,0 +1,6 @@
+# ignore original images
+*.tif
+# ignore MacVim swap files
+*.swp
+# ignore the results file
+results.csv
