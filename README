@@ -1,0 +1,20 @@
+This is an automatic plaque translator - it reads English Heritage plaques from
+photos at Flickr (the plaques are blue circles mounted on walls with white
+text) and uses an Optical Character Recognition engine and other techniques to
+transcribe the image into text. Details:
+http://aicookbook.com/wiki/Automatic_plaque_transcription
+
+This project supports:
+http://openplaques.org/
+
+To get started:
+python get_plaques.py easy_blue_plaques.csv # gets the plaque images
+python transcribe_plaques.py easy_blue_plaques.csv  # transcribe plaques
+python summarise_results.py results.csv # report average error
+
+For some background:
+http://blog.aicookbook.com/2010/08/automatic-plaque-transcription-pytesseract-average-error-down-to-33-4/
+http://jonathanstreet.com/blog/ai-cookbook-competition
+
+Ian
+http://IanOzsvald.com
