@@ -5,18 +5,30 @@ import urllib
 import re
 
 from PIL import Image # http://www.pythonware.com/products/pil/
-import ImageFilter
+from PIL import ImageOps, ImageDraw, ImageFilter
 
 import enchant # http://www.rfk.id.au/software/pyenchant/
-# for MacOS 10.5 I used http://www.rfk.id.au/software/pyenchant/download.html
+# Ian notes - for MacOS 10.5 I used http://www.rfk.id.au/software/pyenchant/download.html
 # with pyenchant-1.6.3-py2.5-macosx-10.4-universal.dmg
 
 # This recognition system depends on:
 # http://code.google.com/p/tesseract-ocr/
 # version 2.04, it must be installed and compiled already
+# tesseract 3 (compiled from source) works but has worse recognition that 2.04
 
-# plaque_transcribe_test5.py
-# run it with 'cmdline> python plaque_transcribe_test5.py easy_blue_plaques.csv'
+# Significant contributors:
+# Ian Ozsvald 
+# Jonathan Street
+
+# Some notes:
+# http://blog.aicookbook.com/2010/08/automatic-plaque-transcription-pytesseract-average-error-down-to-33-4/
+# http://jonathanstreet.com/blog/ai-cookbook-competition
+# http://ianozsvald.com/2010/04/04/tesseract-optical-character-recognition-to-read-plaques/
+
+# For more details see:
+# http://aicookbook.com/wiki/Automatic_plaque_transcription
+
+# run it with 'cmdline> python transcribe_plaques.py easy_blue_plaques.csv'
 # and it'll:
 # 1) send images to tesseract
 # 2) read in the transcribed text file
@@ -25,8 +37,6 @@ import enchant # http://www.rfk.id.au/software/pyenchant/
 # human supplied transcription (in the plaques list below)
 # 5) write error to file
 
-# For more details see:
-# http://aicookbook.com/wiki/Automatic_plaque_transcription
 
 PROGRESS_FILENAME = "progress.txt" # progress log
 
@@ -72,8 +82,11 @@ def clean_image(im):
     #Enhance contrast
     #contraster = ImageEnhance.Contrast(im)
     #im = contraster.enhance(3.0)
-    im = crop_to_plaque(im)
-    im = convert_to_bandl(im)
+    im = crop_to_plaque(im) # cut to a box around the blue circle of the plaque
+    #im = mask_with_circle(im) # mask around plaque to remove noisy backgrounds
+    im = convert_to_bandl(im) # convert to black and white
+    #im = ImageOps.grayscale(im) # convert to greyscale - doesn't improve results
+    #im = ImageOps.posterize(im, 2) # convert to 2 colours (grey and black) - not useful
     return im
 
 def transcribe_simple(filename, progress_file):
@@ -103,6 +116,9 @@ def transcribe_simple(filename, progress_file):
     # delete the output from tesseract
     os.remove(input_filename)
 
+    progress_file.write("raw  :" + line + '\n') 
+    print "raw  :", line
+
     # convert line to lowercase
     transcription = line.lower()
     
@@ -113,7 +129,7 @@ def transcribe_simple(filename, progress_file):
     #Separate words
     d = enchant.Dict("en_GB")
     newtokens = []
-    print 'Prior to post-processing: ', transcription
+    print 'cln1 :', transcription
     tokens = transcription.split(" ")
     for token in tokens:
         if (token == 'i') or (token == 'l') or (token == '-'):
@@ -205,17 +221,43 @@ def crop_to_plaque(srcim):
             top = y
         if tbrange[y] > cutoff * width:
             bottom = y
-    
+
     left = int(left / scale)
     right = int(right / scale)
     top = int(top / scale)
     bottom = int(bottom / scale)
     
+    # hack by Ian, if image is bw then the above detection won't work
+    # and left/right/top/bottom are each set to 0
+    if left == 0 and right == 0 and top == 0 and bottom == 0:
+        assert False # we shouldn't get here unless we have a bw input image?
+        right = int(width / scale)
+        bottom = int(height / scale)
+
     box = (left, top, right, bottom)
+    print "crop box:", box
+
     region = srcim.crop(box)
     #region.show()
     
     return region
+
+def mask_with_circle(im):
+    """use a mask to blank outside the plaque (e.g. to get rid of
+    speckles/lines from brickwork), leaving the plaque untouched"""
+    # taken from http://stackoverflow.com/questions/890051/how-do-i-generate-circuar-thumbnails-with-pil/890114#890114
+    size = im.size
+    mask = Image.new('L', size, 255) # define a white image mask
+    draw = ImageDraw.Draw(mask) # turn the mask into a new Image (bw)
+     # fill with a black circle that touches the sides of the box
+    draw.ellipse((0, 0) + size, fill=0)
+    # fit the mask over the original image
+    output = ImageOps.fit(im, mask.size, centering=(0.5, 0.5))
+    # paste mask over image, black border (outside of circle) is pasted 
+    # over the original image but white centre (inside circle) is unchanged
+    output.paste(0, mask=mask)
+    return output
+    
     
 def convert_to_bandl(im):
     width = im.size[0]
@@ -235,9 +277,8 @@ def convert_to_bandl(im):
                 im.putpixel(point, black)
     #im.show()
     return im
-    
 
-if __name__ == '__main__':
+if __name__ == '__main__':# and False:
     argc = len(sys.argv)
     if argc != 2:
         print "Usage: python plaque_transcribe_demo.py plaques.csv (e.g. \
@@ -252,10 +293,10 @@ easy_blue_plaques.csv)"
             print "----"
             print "Working on:", filename
             transcription = transcribe_simple(filename, progress_file)
-            progress_file.write("orig: " + text + "\n")
-            print "Transcription: ", transcription
-            print "Text: ", text
-            error = levenshtein(text, transcription)
+            progress_file.write("orig :" + text + "\n")
+            print "trans:", transcription
+            print "orig :", text.lower()
+            error = levenshtein(text.lower(), transcription.lower())
             progress_file.write("error:" + str(error) + "\n")
             assert isinstance(error, int)
             print "Error metric:", error
