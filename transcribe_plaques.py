@@ -7,6 +7,9 @@ import re
 from PIL import Image # http://www.pythonware.com/products/pil/
 from PIL import ImageOps, ImageDraw, ImageFilter
 
+# use this to blank regions of the image that contain the English Heritage logo
+import EH_logo_regionblank  
+
 import enchant # http://www.rfk.id.au/software/pyenchant/
 # Ian notes - for MacOS 10.5 I used http://www.rfk.id.au/software/pyenchant/download.html
 # with pyenchant-1.6.3-py2.5-macosx-10.4-universal.dmg
@@ -43,7 +46,7 @@ PROGRESS_FILENAME = "progress.txt" # progress log
 def load_csv(filename):
     """build plaques structure from CSV file"""
     plaques = []
-    plqs = csv.reader(open(filename, 'rb'))#, delimiter=',')
+    plqs = csv.reader(open(filename, 'rb'))
     for row in plqs:
         image_url = row[1]
         text = row[2]
@@ -83,11 +86,24 @@ def clean_image(im):
     #contraster = ImageEnhance.Contrast(im)
     #im = contraster.enhance(3.0)
     im = crop_to_plaque(im) # cut to a box around the blue circle of the plaque
-    #im = mask_with_circle(im) # mask around plaque to remove noisy backgrounds
+    im = mask_with_circle(im) # mask around plaque to remove noisy backgrounds
     im = convert_to_bandl(im) # convert to black and white
     #im = ImageOps.grayscale(im) # convert to greyscale - doesn't improve results
     #im = ImageOps.posterize(im, 2) # convert to 2 colours (grey and black) - not useful
     return im
+
+def blank_EH_logo(im, filename):
+    """if an English Heritage logo exists then blank it out
+       so OCR can't mis-recognise it as text"""
+    eh_logo_region = EH_logo_regionblank.get_bounding_box_for_EH_logo(filename)
+    print "English Heritage logo blanking region:", eh_logo_region
+    if eh_logo_region is not None:
+        (x0, y0, x1, y1) = eh_logo_region
+        imgd = ImageDraw.Draw(im)
+        imgd.rectangle([x0, y0, x1, y1], fill=(0,0,0))
+    
+    return im
+    
 
 def transcribe_simple(filename, progress_file):
     """Convert image to TIF, send to tesseract, read the file back, clean and
@@ -99,6 +115,9 @@ def transcribe_simple(filename, progress_file):
     progress_file.write('----\n')
     progress_file.write(filename + '\n')
     
+    # find and remove the English Heritage logo
+    #im = blank_EH_logo(im, filename)
+
     im = clean_image(im)
     
     filename_tif = 'processed' + filename_base + '.tif'
