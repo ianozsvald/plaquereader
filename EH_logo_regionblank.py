@@ -1,4 +1,5 @@
 import pickle
+import sys
 import math
 from PIL import Image, ImageDraw # used when debugging to draw detected points
 
@@ -64,6 +65,7 @@ def get_bounding_box_for_EH_logo(filename, debug = False):
     y0 = imgsize[1]
     x1 = 0
     y1 = 0
+    region_defined = False
     for point, count in overlap_count.items():
         if count > 3:
             x = point[0]
@@ -80,31 +82,40 @@ def get_bounding_box_for_EH_logo(filename, debug = False):
             x1 = max(x+bounding_region_x, x1)
             y0 = min(y0-bounding_region_y, y)
             y1 = max(y1+bounding_region_y, y)
+            region_defined = True
 
-    # make the bounding box wider as sometimes the SURF detector finds
-    # interior points, not exterior points, in which case it draws the bounding
-    # box on the *inside* of the EH logo
-    bounding_box_width = x1 - x0
-    x0 = x0 - (bounding_box_width/2) # make it 50% wider to left
-    x1 = x1 + (bounding_box_width/2) # and 50% wider to right
-    # make the depth of the box reach to the bottom of the image, there should
-    # be no text below the EH logo
-    y1 = imgsize[1]
+    if region_defined:
+        # make the bounding box wider as sometimes the SURF detector finds
+        # interior points, not exterior points, in which case it draws the bounding
+        # box on the *inside* of the EH logo
+        bounding_box_width = x1 - x0
+        x0 = x0 - (bounding_box_width/2) # make it 50% wider to left
+        x1 = x1 + (bounding_box_width/2) # and 50% wider to right
+    
+        # make the depth of the box reach to the bottom of the image, there should
+        # be no text below the EH logo
+        y1 = imgsize[1]
+    
     if debug:
         print x0, y0, x1, y1
         imgd.rectangle([x0, y0, x1, y1])
         img.show()
 
-    return (x0, y0, x1, y1)
+    if region_defined:
+        return (x0, y0, x1, y1)
+    else:
+        return None
 
 
 if __name__ == "__main__":
-    # do a test
-    #print get_bounding_box_for_EH_logo('4643953869_695dffeb7c_o.tif', True)
-    
-    # we could iterate over all the plaques using this, it'll
-    # draw each plaque with all detected logo positions (circles)
-    # and the derived bounding box (rectangle) per plaque
-    for filename, (imgsize, points) in plaque_logo_positions.items():
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+        print "Working with", filename
         print get_bounding_box_for_EH_logo(filename, True)
+    else:
+        # iterate over all the plaques using this, it'll
+        # draw each plaque with all detected logo positions (circles)
+        # and the derived bounding box (rectangle) per plaque
+        for filename, (imgsize, points) in plaque_logo_positions.items():
+            print get_bounding_box_for_EH_logo(filename, True)
     
