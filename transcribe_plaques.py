@@ -116,7 +116,7 @@ def transcribe_simple(filename, progress_file):
     progress_file.write(filename + '\n')
     
     # find and remove the English Heritage logo
-    #im = blank_EH_logo(im, filename)
+    im = blank_EH_logo(im, filename)
 
     im = clean_image(im)
     
@@ -140,10 +140,10 @@ def transcribe_simple(filename, progress_file):
 
     # convert line to lowercase
     transcription = line.lower()
-    
+     
     #Remove gaps in year ranges
     transcription = re.sub(r"(\d+)\s*-\s*(\d+)", r"\1-\2", transcription)
-    transcription = re.sub(r"([0-9il\)]{4})", clean_years, transcription)
+    transcription = re.sub(r"([0-9iloO\)]{4})", clean_years, transcription)
     
     #Separate words
     d = enchant.Dict("en_GB")
@@ -188,6 +188,8 @@ def clean_years(m):
             year.append('1')
         elif digit == ')':
             year.append('3')
+        elif digit.lower() == 'o':
+            year.append('0')
         else:
             year.append(digit)
     return ''.join(year)
