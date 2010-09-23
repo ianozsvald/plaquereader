@@ -139,7 +139,8 @@ def transcribe_simple(filename, progress_file):
     print "raw  :", line
 
     # convert line to lowercase
-    transcription = line.lower()
+    #transcription = line.lower()
+    transcription = line
      
     #Remove gaps in year ranges
     transcription = re.sub(r"(\d+)\s*-\s*(\d+)", r"\1-\2", transcription)
@@ -151,26 +152,32 @@ def transcribe_simple(filename, progress_file):
     print 'cln1 :', transcription
     tokens = transcription.split(" ")
     for token in tokens:
-        if (token == 'i') or (token == 'l') or (token == '-'):
-            pass
-        elif token == '""':
-            newtokens.append('"')
-        elif token == '--':
-            newtokens.append('-')
-        elif len(token) > 2:
-            if d.check(token):
-                #Token is a valid word
-                newtokens.append(token)
-            else:
-                #Token is not a valid word
-                suggestions = d.suggest(token)
-                if len(suggestions) > 0:
-                    #If the spell check has suggestions take the first one
-                    newtokens.append(suggestions[0])
-                else:
-                    newtokens.append(token)
-        else:
+        # just lowercase the fully uppercase words, they're probably names
+        if token.isupper():
+            token = token.lower()
             newtokens.append(token)
+        else:
+            token = token.lower()
+            if (token == 'i') or (token == 'l') or (token == '-'):
+                pass
+            elif token == '""':
+                newtokens.append('"')
+            elif token == '--':
+                newtokens.append('-')
+            elif len(token) > 2:
+                if d.check(token):
+                    #Token is a valid word
+                    newtokens.append(token)
+                else:
+                    #Token is not a valid word
+                    suggestions = d.suggest(token)
+                    if len(suggestions) > 0:
+                        #If the spell check has suggestions take the first one
+                        newtokens.append(suggestions[0])
+                    else:
+                        newtokens.append(token)
+            else:
+                newtokens.append(token)
             
     transcription = ' '.join(newtokens)
 
