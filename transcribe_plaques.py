@@ -178,6 +178,19 @@ def transcribe_simple(filename, progress_file):
                         newtokens.append(token)
             else:
                 newtokens.append(token)
+
+    # second filtering phase, remove all single characters
+    # that aren't 'i' or 'a'
+    tokens = newtokens
+    newtokens = []
+    for token in tokens:
+        if len(token) == 1:
+            # check of 'i' or 'a' which might be valid
+            if token in "ai":
+                newtokens.append(token)
+        else:
+            newtokens.append(token)
+
             
     transcription = ' '.join(newtokens)
 
