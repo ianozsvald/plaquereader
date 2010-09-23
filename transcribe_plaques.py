@@ -189,7 +189,8 @@ def transcribe_simple(filename, progress_file):
             if token in "ai":
                 newtokens.append(token)
         else:
-            newtokens.append(token)
+            if len(token) > 0:
+                newtokens.append(token)
 
             
     transcription = ' '.join(newtokens)
