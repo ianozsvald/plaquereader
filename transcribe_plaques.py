@@ -173,7 +173,7 @@ def transcribe_simple(filename, progress_file):
                     suggestions = d.suggest(token)
                     if len(suggestions) > 0:
                         #If the spell check has suggestions take the first one
-                        newtokens.append(suggestions[0])
+                        newtokens.append(suggestions[0].lower())
                     else:
                         newtokens.append(token)
             else:
